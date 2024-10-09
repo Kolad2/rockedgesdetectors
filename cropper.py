@@ -7,21 +7,30 @@ class Cropper:
 		img_small = self.img[y:y + dy, x:x + dx]
 		self.edges[y + ddy:y + dy - ddy, x + ddx:x + dx - ddx] = self.model.get_model_edges(img_small)[ddy:dy - ddy, ddx:dx - ddx]
 
-	def get_full_edge(self, dx, dy, ddx, ddy):
+	def get_cropped_edges(self, dx, dy, ddx, ddy):
 		i_max = math.floor((self.sh[0] - 2 * ddy) / (dy - 2 * ddy))
 		j_max = math.floor((self.sh[1] - 2 * ddx) / (dx - 2 * ddx))
 		for i in range(0, i_max):
 			for j in range(0, j_max):
 				if (i*i_max + j) % 1 == 0:
 					print(i*i_max + j,"/",j_max*i_max)
-				self.get_crop_edge((dx - 2 * ddx) * i, (dy - 2 * ddy) * j, dx, dy, ddx, ddy)
-			y = (dy - 2 * ddy) * i_max
-			self.get_crop_edge((dx - 2 * ddx) * i, y, dx, self.sh[0] - y, ddx, ddy)
+				x = (dx - 2 * ddx) * j
+				y = (dy - 2 * ddy) * i
+				self.get_crop_edge(x, y, dx, dy, ddx, ddy)
 
+		_x = (dx - 2 * ddx) * j_max
+		_y = (dy - 2 * ddy) * i_max
+		_dx = self.sh[1] - _x
+		_dy = self.sh[0] - _y
+		for j in range(0, j_max):
+			x = (dx - 2 * ddx) * j
+			self.get_crop_edge(x, _y, dx, _dy, ddx, ddy)
+
+		for i in range(0, i_max):
+			y = (dy - 2 * ddy) * i
+			self.get_crop_edge(_x, y, _dx, dy, ddx, ddy)
+		self.get_crop_edge(_x, _y, _dx, _dy, ddx, ddy)
 		return self.edges
-		# for j in range(0, i_max):
-		# 	x = (dx - 2 * ddx) * j_max
-		# 	self.get_crop_edge(x, (dy - 2 * ddy) * j, self.sh[1] - x, dy, ddx, ddy)
 
 	def __init__(self, model, img):
 		self.img = img
