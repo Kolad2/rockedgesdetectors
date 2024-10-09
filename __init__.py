@@ -1,2 +1,3 @@
 import rockedgesdetectors.pyrcf
-from .main import ModelGPU
+from .models import ModelGPU
+from .cropper import Cropper
