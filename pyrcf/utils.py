@@ -15,6 +15,7 @@ import skimage
 import warnings
 from PIL import Image
 
+
 class Logger(object):
   def __init__(self, fpath=None):
     self.console = sys.stdout
@@ -129,7 +130,7 @@ def load_fsds_caffe(model, fsdsmodel='caffe-fsds.mat'):
 
         if 'upsample' in name_par:
            # print('skip upsample')
-            continue 
+            continue
 
 
         if size  == 2:
@@ -150,7 +151,7 @@ def load_fsds_caffe(model, fsdsmodel='caffe-fsds.mat'):
             if data.ndim==2:
                # print (data.shape[0])
                 data = np.reshape(data,(data.shape[0], data.shape[1]))
-            if data.ndim==1 :                
+            if data.ndim==1 :
                 data = np.reshape(data, (1, len(data), 1, 1))
             if data.ndim==0:
                 data = np.reshape(data, (1))
