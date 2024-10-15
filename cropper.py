@@ -5,7 +5,7 @@ import numpy as np
 class Cropper:
 	def get_crop_edge(self, x, y, dx, dy, ddx, ddy):
 		img_small = self.img[y:y + dy, x:x + dx]
-		self.edges[y + ddy:y + dy - ddy, x + ddx:x + dx - ddx] = self.model.get_model_edges(img_small)[ddy:dy - ddy, ddx:dx - ddx]
+		self.edges[y + ddy:y + dy - ddy, x + ddx:x + dx - ddx] = self.model(img_small)[ddy:dy - ddy, ddx:dx - ddx]
 
 	def get_cropped_edges(self, dx, dy, ddx, ddy):
 		i_max = math.floor((self.sh[0] - 2 * ddy) / (dy - 2 * ddy))
@@ -32,8 +32,16 @@ class Cropper:
 		self.get_crop_edge(_x, _y, _dx, _dy, ddx, ddy)
 		return self.edges
 
-	def __init__(self, model, img):
+	def __init__(self, model, img, crop=512, pad=64):
 		self.img = img
 		self.sh = img.shape
 		self.model = model
 		self.edges = np.zeros(img.shape[0:2], np.float32)
+		self.crop = crop
+		self.pad = pad
+
+	def __call__(self, image):
+		self.img = image
+		self.sh = image.shape
+		self.edges = np.zeros(image.shape[0:2], np.float32)
+		return self.get_cropped_edges(self.crop, self.crop, self.pad, self.pad)

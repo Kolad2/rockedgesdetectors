@@ -1,3 +1,4 @@
 import rockedgesdetectors.pyrcf
-from .models import ModelGPU
+from .pyrcf import ModelRCF
+from .pidinet import ModelPiDiNet
 from .cropper import Cropper

@@ -81,7 +81,7 @@ def createConvFunc(op_type):
 
             shape = weights.shape
             if weights.is_cuda:
-                buffer = torch.cuda.FloatTensor(shape[0], shape[1], 5 * 5).fill_(0)
+                buffer = torch.zeros(shape[0], shape[1], 5 * 5, device='cuda')
             else:
                 buffer = torch.zeros(shape[0], shape[1], 5 * 5)
             weights = weights.view(shape[0], shape[1], -1)
