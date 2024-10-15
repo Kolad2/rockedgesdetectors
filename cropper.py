@@ -12,8 +12,8 @@ class Cropper:
 		j_max = math.floor((self.sh[1] - 2 * ddx) / (dx - 2 * ddx))
 		for i in range(0, i_max):
 			for j in range(0, j_max):
-				if (i*i_max + j) % 1 == 0:
-					print(i*i_max + j,"/",j_max*i_max)
+				if (i*i_max + j + 1) % 1 == 0:
+					print(i*i_max + j + 1,"/",j_max*i_max)
 				x = (dx - 2 * ddx) * j
 				y = (dy - 2 * ddy) * i
 				self.get_crop_edge(x, y, dx, dy, ddx, ddy)
