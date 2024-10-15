@@ -292,7 +292,7 @@ def pidinet_small(args):
     return PiDiNet(30, pdcs, dil=dil, sa=args.sa)
 
 def pidinet(args):
-    pdcs = config_model(args.config)
+    pdcs = config_model(args.model)
     dil = 24 if args.dil else None
     return PiDiNet(60, pdcs, dil=dil, sa=args.sa)
 

@@ -30,8 +30,8 @@ def convert_pdc(op, weight):
         return buffer
     raise ValueError("wrong op {}".format(str(op)))
 
-def convert_pidinet(state_dict, config):
-    pdcs = config_model_converted(config)
+def convert_pidinet(state_dict, model):
+    pdcs = config_model_converted(model)
     new_dict = {}
     for pname, p in state_dict.items():
         if 'init_block.weight' in pname:
