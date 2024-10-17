@@ -32,11 +32,11 @@ class Cropper:
 		self.get_crop_edge(_x, _y, _dx, _dy, ddx, ddy)
 		return self.edges
 
-	def __init__(self, model, img, crop=512, pad=64):
+	def __init__(self, model, img=None, crop=512, pad=64):
 		self.img = img
-		self.sh = img.shape
+		self.sh = img.shape if img is not None else None
 		self.model = model
-		self.edges = np.zeros(img.shape[0:2], np.float32)
+		self.edges = np.zeros(img.shape[0:2], np.float32) if img is not None else None
 		self.crop = crop
 		self.pad = pad
 
