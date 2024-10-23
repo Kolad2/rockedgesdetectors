@@ -6,7 +6,7 @@ import torch
 from torch import nn
 import torchvision
 
-from rockedgesdetectors.pyrcf import utils, models, data_loader
+from . import utils, models, data_loader
 
 
 def _image_cv2cpunn(img):

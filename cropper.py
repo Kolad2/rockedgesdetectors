@@ -1,8 +1,6 @@
 import math
 import numpy as np
 
-from scripts.edge_detect import result
-
 
 class Cropper:
 	def get_crop_edge(self, x, y, dx, dy, ddx, ddy):
@@ -98,8 +96,9 @@ class Cropper:
 		self.img = image
 		self.sh = image.shape
 		self.edges = np.zeros(image.shape[0:2], np.float32)
-		ddx = self.pad
-		ddy = self.pad
-		dx = self.crop if self.crop >= self.sh[1] else self.sh[1] and ddx = 0
-		dy = self.crop if self.crop >= self.sh[0] else self.sh[0] and ddy = 0
+		ddx = self.pad if self.crop < self.sh[1] else 0
+		ddy = self.pad if self.crop < self.sh[0] else 0
+		dx = self.crop if self.crop < self.sh[1] else self.sh[1]
+		dy = self.crop if self.crop < self.sh[0] else self.sh[0]
 		return self.get_cropped_edges(dx, dy, ddx, ddy)
+
