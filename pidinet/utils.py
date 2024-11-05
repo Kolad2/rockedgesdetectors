@@ -141,8 +141,8 @@ def adjust_learning_rate(optimizer, epoch, args):
 def cross_entropy_loss_RCF(prediction, labelf, beta):
     label = labelf.long()
     mask = labelf.clone()
-    num_positive = torch.sum(label==1).float()
-    num_negative = torch.sum(label==0).float()
+    num_positive = torch.sum(label == 1).float()
+    num_negative = torch.sum(label == 0).float()
 
     mask[label == 1] = 1.0 * num_negative / (num_positive + num_negative)
     mask[label == 0] = beta * num_positive / (num_positive + num_negative)
