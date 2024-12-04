@@ -40,7 +40,6 @@ class ModelPiDiNet:
 		if checkpoint_path is not None:
 			checkpoint = torch.load(checkpoint_path, map_location='cuda')
 			self.model.load_state_dict(checkpoint['state_dict'])
-			self.model = self.model.cuda()
 
 	def get_weights(self):
 		return PiDiNet.get_weights(self.model)
