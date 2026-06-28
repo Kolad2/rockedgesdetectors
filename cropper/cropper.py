@@ -1,12 +1,31 @@
 import math
 import numpy as np
 
-
 class Cropper:
+	def __init__(self, model, crop=512, pad=64, display=False):
+		self.crop = int(crop)
+		self.pad = int(pad)
+		self.display = display
+		self.model = model
+		self.image = None
+		self.output = None
+		self.progress = None
+
+		if self.crop <= 0:
+			raise ValueError("crop must be positive")
+
+		if self.pad < 0:
+			raise ValueError("pad must be non-negative")
+
+		if self.crop <= 2 * self.pad:
+			raise ValueError("crop must be greater than 2 * pad")
+
 	def get_crop_edge(self, x, y, dx, dy, ddx, ddy):
-		img_small = self.img[y:y + dy, x:x + dx]
+		img_small = self.image[y:y + dy, x:x + dx]
 		edges_small = self.model(img_small)
-		self.edges[y + ddy:y + dy - ddy, x + ddx:x + dx - ddx] = edges_small[ddy:dy - ddy, ddx:dx - ddx]
+		self.output[y + ddy:y + dy - ddy, x + ddx:x + dx - ddx] = edges_small[ddy:dy - ddy, ddx:dx - ddx]
+		if self.progress is not None:
+			self.progress.update(1)
 
 	def bottom_right_edges(self, dx, dy, ddx, ddy):
 		x, y = self.sh[1] - dx, self.sh[0] - dy
@@ -59,23 +78,40 @@ class Cropper:
 		for j in range(0, j_max):
 			self.get_crop_edge(x, y, dx, dy, ddx, 0)
 			x += step_x
-	
+
 	def center_edges(self, dx, dy, ddx, ddy):
 		step_x = dx - 2 * ddx
 		step_y = dy - 2 * ddy
+
 		i_max = (self.sh[0] - 2 * ddy) // step_y
 		j_max = (self.sh[1] - 2 * ddx) // step_x
+
 		shift_x = (self.sh[1] - j_max * step_x) // 2 - ddx
 		shift_y = (self.sh[0] - i_max * step_y) // 2 - ddy
-		for i in range(0, i_max):
-			for j in range(0, j_max):
-				if (i * i_max + j + 1) % 1 == 0:
-					print(i * i_max + j + 1, "/", j_max * i_max)
+
+		total = i_max * j_max
+
+		for i in range(i_max):
+			for j in range(j_max):
 				x = step_x * j + shift_x
 				y = step_y * i + shift_y
 				self.get_crop_edge(x, y, dx, dy, ddx, ddy)
 
-	def get_cropped_edges(self, dx, dy, ddx, ddy):
+	def _count_crops(self, dx, dy, ddx, ddy):
+		step_x = dx - 2 * ddx
+		step_y = dy - 2 * ddy
+
+		i_max = (self.sh[0] - 2 * ddy) // step_y
+		j_max = (self.sh[1] - 2 * ddx) // step_x
+
+		corners = 4
+		vertical_edges = 2 * i_max  # left + right
+		horizontal_edges = 2 * j_max  # top + bottom
+		center = i_max * j_max
+
+		return corners + vertical_edges + horizontal_edges + center
+
+	def get_cropped_output(self, dx, dy, ddx, ddy):
 		self.top_left_edges(dx, dy, ddx, ddy)
 		self.bottom_right_edges(dx, dy, ddx, ddy)
 		self.bottom_left_edges(dx, dy, ddx, ddy)
@@ -85,20 +121,41 @@ class Cropper:
 		self.bottom_edges(dx, dy, ddx, ddy)
 		self.left_edges(dx, dy, ddx, ddy)
 		self.center_edges(dx, dy, ddx, ddy)
-		return self.edges
+		return self.output
 
-	def __init__(self, model, crop=512, pad=64):
-		self.model = model
-		self.crop = crop
-		self.pad = pad
+	@staticmethod
+	def _make_progress(total, enabled, desc="llambdakern"):
+		if not enabled:
+			return None
+
+		try:
+			from tqdm.auto import tqdm
+		except ImportError:
+			print("tqdm is not installed; progress display disabled")
+			return None
+
+		return tqdm(total=total, desc=desc)
 
 	def __call__(self, image):
-		self.img = image
+		self.image = image
 		self.sh = image.shape
-		self.edges = np.zeros(image.shape[0:2], np.float32)
+		self.output = np.zeros(image.shape[0:2], np.float32)
+
 		ddx = self.pad if self.crop < self.sh[1] else 0
 		ddy = self.pad if self.crop < self.sh[0] else 0
+
 		dx = self.crop if self.crop < self.sh[1] else self.sh[1]
 		dy = self.crop if self.crop < self.sh[0] else self.sh[0]
-		return self.get_cropped_edges(dx, dy, ddx, ddy)
+
+		total = self._count_crops(dx, dy, ddx, ddy)
+		self.progress = self._make_progress(total, self.display)
+
+		try:
+			output = self.get_cropped_output(dx, dy, ddx, ddy)
+		finally:
+			if self.progress is not None:
+				self.progress.close()
+				self.progress = None
+
+		return output
 
