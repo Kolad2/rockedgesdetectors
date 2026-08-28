@@ -139,6 +139,9 @@ class Cropper:
 	def __call__(self, image):
 		self.image = image
 		self.sh = image.shape
+		if self.sh[0] <= self.crop and self.sh[1] <= self.crop:
+			return self.model(image)
+
 		self.output = np.zeros(image.shape[0:2], np.float32)
 
 		ddx = self.pad if self.crop < self.sh[1] else 0
