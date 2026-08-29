@@ -1,8 +1,12 @@
 # rockedgesdetectors
 
-`Cropper` symmetrically pads images with black pixels until the overlap-tile
-counts are integral along both axes. Only the center of every crop is copied to
-the result, and the padding is removed before returning the original extent.
+`Cropper` symmetrically pads images until the overlap-tile counts are integral
+along both axes. Reflect padding is used by default to avoid creating an
+artificial edge around the source image. Set `pad_mode="zeros"` for the old
+black padding behavior. The accepted modes are `reflect`, `zeros`, `constant`,
+`replicate`, `edge`, `circular`, `wrap`, and `symmetric`. Only the center of
+every crop is copied to the result, and the padding is removed before returning
+the original extent.
 
 ## DiffusionEdge BSDS
 

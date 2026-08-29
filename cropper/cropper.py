@@ -1,20 +1,33 @@
-"""Overlap-tile inference with symmetric black image padding."""
+"""Overlap-tile inference with configurable symmetric image padding."""
 
 import numpy as np
 
-from .pad_image import pad_image
+from .pad_image import PAD_MODES, pad_image, resolve_pad_mode
 
 
 class Cropper:
+    """Run overlap-tile inference.
+
+    Available padding modes are exposed as ``Cropper.PAD_MODES``.
+    """
+
+    PAD_MODES = PAD_MODES
+
     def __init__(
         self,
         model,
         crop: int = 512,
         pad: int = 64,
+        pad_mode: str = "reflect",
         display: bool = False,
     ):
         self.crop = int(crop)
         self.pad = int(pad)
+        self.pad_mode = (
+            pad_mode.strip().lower()
+            if isinstance(pad_mode, str)
+            else pad_mode
+        )
         self.display = display
         self.model = model
 
@@ -29,6 +42,7 @@ class Cropper:
             raise ValueError("pad must be non-negative")
         if self.crop <= 2 * self.pad:
             raise ValueError("crop must be greater than 2 * pad")
+        resolve_pad_mode(self.pad_mode)
 
     @property
     def step(self) -> int:
@@ -122,6 +136,7 @@ class Cropper:
             image,
             crop=self.crop,
             pad=self.pad,
+            pad_mode=self.pad_mode,
         )
         top, _bottom, left, _right = padding
 
