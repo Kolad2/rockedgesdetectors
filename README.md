@@ -23,6 +23,14 @@ each crop separately to avoid visible tile boundaries.
 Original implementation and weights:
 https://github.com/Li-yachuan/DDN
 
+Fine-tuning components are available in `ddn.training`. The repository-level
+entry point is `scripts_train/train_ddn.py`; its paths and hyperparameters are
+kept at the top of that script.
+
+```bash
+python scripts_train/train_ddn.py
+```
+
 ## RCF model example
 rcf model [download](https://drive.google.com/file/d/1ZY6W41xDJjG5jERd9aDHo6NJhu_H0EsW/view?usp=sharing)
 

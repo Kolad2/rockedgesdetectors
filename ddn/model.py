@@ -83,7 +83,11 @@ class DDNBSDS(nn.Module):
     :class:`NumpyDDNAdapter` for the final edge probability map.
     """
 
-    def __init__(self, checkpoint_path: str | Path):
+    def __init__(
+        self,
+        checkpoint_path: str | Path,
+        trainable: bool = False,
+    ):
         super().__init__()
         with torch.device("meta"):
             self.encoder = DDNCAFormerM36(local_channels=16)
@@ -97,7 +101,7 @@ class DDNBSDS(nn.Module):
             )
 
         self._load_checkpoint(Path(checkpoint_path))
-        self.requires_grad_(False)
+        self.requires_grad_(trainable)
 
     @property
     def device(self) -> torch.device:
