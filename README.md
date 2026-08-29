@@ -1,5 +1,9 @@
 # rockedgesdetectors
 
+`Cropper` symmetrically pads images with black pixels until the overlap-tile
+counts are integral along both axes. Only the center of every crop is copied to
+the result, and the padding is removed before returning the original extent.
+
 ## DiffusionEdge BSDS
 
 The `diffusion_edge` package contains an inference-only PyTorch port of the
