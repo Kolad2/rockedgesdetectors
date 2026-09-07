@@ -1,0 +1,15 @@
+RCF architecture: https://github.com/yun-liu/RCF-PyTorch
+Upstream commit: 3e6b3a2772197da47ca37add4ba049e635897737
+License: CC BY-NC-SA 4.0; see LICENSE.md.
+
+models.py preserves upstream layers, crop offsets and six sigmoid outputs.
+Local changes: fixed bilinear kernels are non-persistent buffers for device
+and dtype transfers; removed the unused MATLAB VGG initialization path.
+Inference wrappers and the NumPy adapter are local integration code.
+
+train/ adapts the same upstream revision's train.py, dataset.py and utils.py:
+RCF deep supervision, class-balanced BCE, SGD parameter groups and BGR/ignore
+label preprocessing. Project additions and deliberate differences are recorded
+in train/README.md. It has no dependency on the DDN training implementation.
+
+Checkpoint: https://github.com/yun-liu/RCF-PyTorch/releases/download/v1.0/bsds500_pascal_model.pth
