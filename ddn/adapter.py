@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from .model import DDNBSDS
+from .model import DDN
 
 
 class NumpyDDNAdapter(nn.Module):
@@ -12,7 +12,7 @@ class NumpyDDNAdapter(nn.Module):
 
     def __init__(
         self,
-        module: DDNBSDS,
+        module: DDN,
         granularity: float = 0.0,
         normalize: bool = False,
     ):

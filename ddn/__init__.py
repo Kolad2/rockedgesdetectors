@@ -1,4 +1,4 @@
 from .adapter import NumpyDDNAdapter
-from .model import DDNBSDS
+from .model import DDN
 
-__all__ = ["DDNBSDS", "NumpyDDNAdapter"]
+__all__ = ["DDN", "NumpyDDNAdapter"]

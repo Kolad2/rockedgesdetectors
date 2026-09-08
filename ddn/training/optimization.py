@@ -2,11 +2,11 @@
 
 import torch
 
-from ..model import DDNBSDS
+from ..model import DDN
 
 
 def create_ddn_optimizer(
-    model: DDNBSDS,
+    model: DDN,
     learning_rate: float = 1e-4,
     encoder_lr_scale: float = 0.1,
     weight_decay: float = 5e-4,

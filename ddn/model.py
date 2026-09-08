@@ -76,7 +76,7 @@ class UnetDecoder(nn.Module):
         return self.conv14(features[1], features[0])
 
 
-class DDNBSDS(nn.Module):
+class DDN(nn.Module):
     """DDN-M36 loaded from the authors' released BSDS500 checkpoint.
 
     The module returns the mean and standard deviation edge logits. Use
