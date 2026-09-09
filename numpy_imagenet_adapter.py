@@ -1,9 +1,11 @@
-from typing import Any, Callable, Optional, Union
+"""ImageNet normalization and output selection for NumPy edge inference."""
 
-import numpy as np
+from typing import Any, Callable, Optional
+
 import torch
 from torch import nn
-from torchvision import transforms
+
+from .numpy_adapter import NumpyAdapter
 
 
 ModelOutput = Any
@@ -11,59 +13,23 @@ OutputSelector = Callable[[ModelOutput], torch.Tensor]
 
 
 def _identity(output: ModelOutput) -> torch.Tensor:
-	return output
+    return output
 
 
-class NumpyImagenetAdapter(nn.Module):
-	"""Adapt NumPy images to an ImageNet-pretrained PyTorch module."""
+class NumpyImagenetAdapter(NumpyAdapter):
+    """Accept RGB images/batches and apply ImageNet normalization."""
 
-	def __init__(
-		self,
-		module: nn.Module,
-		output_selector: Optional[OutputSelector] = None,
-	):
-		super().__init__()
-		self.module = module
-		self.output_selector = output_selector or _identity
-		self.transform = transforms.Compose([
-			transforms.ToTensor(),
-			transforms.Normalize(
-				mean=[0.485, 0.456, 0.406],
-				std=[0.229, 0.224, 0.225],
-			),
-		])
+    def __init__(self, module: nn.Module, output_selector: Optional[OutputSelector] = None):
+        super().__init__(module)
+        self.output_selector = output_selector or _identity
 
-	@property
-	def device(self) -> torch.device:
-		parameter = next(self.module.parameters(), None)
-		if parameter is not None:
-			return parameter.device
+    def preprocess(self, tensor: torch.Tensor) -> torch.Tensor:
+        if tensor.shape[1] != 3:
+            raise ValueError("ImageNet input must have 3 RGB channels")
+        mean = tensor.new_tensor([0.485, 0.456, 0.406])[None, :, None, None]
+        std = tensor.new_tensor([0.229, 0.224, 0.225])[None, :, None, None]
+        return (tensor - mean) / std
 
-		buffer = next(self.module.buffers(), None)
-		if buffer is not None:
-			return buffer.device
-
-		return torch.device("cpu")
-
-	def forward(
-		self,
-		image: Union[np.ndarray, torch.Tensor],
-	) -> Union[np.ndarray, ModelOutput]:
-		if isinstance(image, torch.Tensor):
-			return self.module(image)
-
-		if not isinstance(image, np.ndarray):
-			raise TypeError(
-				"image must be a numpy.ndarray or torch.Tensor, "
-				f"got {type(image).__name__}"
-			)
-
-		input_tensor = self.transform(image).unsqueeze(0).to(self.device)
-		output = self.output_selector(self.module(input_tensor))
-		if not isinstance(output, torch.Tensor):
-			raise TypeError(
-				"output_selector must return a torch.Tensor, "
-				f"got {type(output).__name__}"
-			)
-
-		return torch.squeeze(output).detach().cpu().numpy()
+    def postprocess(self, output: ModelOutput, image_size: tuple[int, int]) -> torch.Tensor:
+        # Tensor inputs retain their previous behavior: return raw network outputs.
+        return self.output_selector(output)
