@@ -1,11 +1,8 @@
 """Overlap-tile inference with configurable symmetric image padding."""
 
 import operator
-from typing import Any, Callable
 
 import numpy as np
-import torch
-from torch import nn
 
 from .pad_image import PAD_MODES, pad_image, resolve_pad_mode
 
@@ -169,71 +166,33 @@ class Cropper:
 
 
 class BatchedCropper(Cropper):
-    """Run a PyTorch module on batches of NumPy image crops.
+    """Pass batches of NumPy crops to a callable model or NumPy adapter.
 
-    Inputs become NCHW tensors on the model's device and floating dtype
-    (CPU/float32 for stateless modules). uint8 values are divided by 255;
-    floating image values are preserved. Optional preprocess receives this
-    tensor batch, e.g. for ImageNet normalization. Optional output_selector
-    converts the network output to [N, 1, H, W] or [N, H, W] edge maps.
+    For batch_num > 1, RGB/multichannel inputs produce [N, H, W, C]
+    batches; grayscale inputs produce [N, H, W, 1]. The callable must
+    return NumPy edge maps [N, H, W], including for a final batch of one.
+    Input dtype and values are preserved. Tensor conversion, normalization,
+    device placement and output selection belong to the adapter.
 
-    The module is set to eval mode and runs under torch.inference_mode().
-    batch_num=1 uses Cropper's standard traversal and assembly, with tensor
-    inference for each crop. The returned image is a float32 NumPy array.
+    batch_num=1 uses the standard Cropper path with individual HW/HWC crops.
+    Images and assembled float32 output maps remain in CPU memory.
     """
 
     def __init__(
         self,
-        model: nn.Module,
+        model,
         crop: int = 512,
         pad: int = 64,
         pad_mode: str = "reflect",
         display: bool = False,
         batch_num: int = 1,
-        *,
-        preprocess: Callable[[torch.Tensor], torch.Tensor] | None = None,
-        output_selector: Callable[[Any], torch.Tensor] | None = None,
     ):
         super().__init__(model, crop, pad, pad_mode, display)
         self.batch_num = operator.index(batch_num)
         if self.batch_num < 1:
             raise ValueError("batch_num must be positive")
-        if not isinstance(model, nn.Module):
-            raise TypeError("BatchedCropper model must be a torch.nn.Module")
-        self.preprocess = preprocess
-        self.output_selector = output_selector
-        self.model.eval()
-
-    def _predict_crop(self, image_crop: np.ndarray) -> np.ndarray:
-        return self._predict_batch(image_crop[np.newaxis])[0]
-
-    def _predict_batch(self, crops: np.ndarray) -> np.ndarray:
-        tensor = torch.from_numpy(np.ascontiguousarray(crops))
-        tensor = tensor.unsqueeze(1) if tensor.ndim == 3 else tensor.permute(0, 3, 1, 2)
-        reference = next(self.model.parameters(), None)
-        if reference is None:
-            reference = next(self.model.buffers(), None)
-        device = reference.device if reference is not None else torch.device("cpu")
-        dtype = reference.dtype if reference is not None and reference.is_floating_point() else torch.float32
-        with torch.inference_mode():
-            tensor = tensor.to(device=device, dtype=dtype)
-            if crops.dtype == np.uint8:
-                tensor = tensor / 255.0
-            if self.preprocess is not None:
-                tensor = self.preprocess(tensor)
-                if not isinstance(tensor, torch.Tensor):
-                    raise TypeError("preprocess must return a torch.Tensor")
-            outputs = self.model(tensor)
-            if self.output_selector is not None:
-                outputs = self.output_selector(outputs)
-            if not isinstance(outputs, torch.Tensor):
-                raise TypeError("Model output must be a torch.Tensor; provide output_selector for structured outputs")
-            if outputs.ndim == 4 and outputs.shape[1] == 1:
-                outputs = outputs[:, 0]
-            expected_shape = (len(crops), self.crop, self.crop)
-            if tuple(outputs.shape) != expected_shape:
-                raise ValueError(f"Model returned shape {tuple(outputs.shape)}, expected {expected_shape}")
-            return outputs.detach().to(device="cpu", dtype=torch.float32).numpy()
+        if not callable(model):
+            raise TypeError("BatchedCropper model must be callable")
 
     def center_edges(self) -> None:
         if self.batch_num == 1:
@@ -255,7 +214,14 @@ class BatchedCropper(Cropper):
             self.image[y:y + self.crop, x:x + self.crop]
             for x, y in coordinates
         ])
-        outputs = self._predict_batch(crops)
+        if crops.ndim == 3:
+            crops = crops[..., np.newaxis]
+        outputs = self.model(crops)
+        if not isinstance(outputs, np.ndarray):
+            raise TypeError("BatchedCropper model must return a numpy.ndarray")
+        expected_shape = (len(coordinates), self.crop, self.crop)
+        if outputs.shape != expected_shape:
+            raise ValueError(f"Model returned shape {outputs.shape}, expected {expected_shape}")
         for (x, y), output_crop in zip(coordinates, outputs):
             self.output[
                 y + self.pad:y + self.pad + self.step,
