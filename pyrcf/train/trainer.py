@@ -41,6 +41,7 @@ class RCFTrainer:
         total_loss = total_fused = total_positive = 0.0
         split = "train" if training else "validation"
         progress = tqdm(loader, desc=f"RCF {split} {epoch}")
+        group_has_valid_pixels = False
         for index, (image, label) in enumerate(progress):
             image = image.to(self.device, non_blocking=True)
             label = label.to(self.device, non_blocking=True)
@@ -49,6 +50,7 @@ class RCFTrainer:
             if not torch.isfinite(loss):
                 raise FloatingPointError(f"Non-finite RCF {split} loss")
             if training:
+                group_has_valid_pixels |= bool((label != 2).any().item())
                 # Authors divide the sum of six losses by iter_size before
                 # backward. Also flush and correctly scale a final short group.
                 group_start = (index // self.iter_size) * self.iter_size
@@ -58,8 +60,11 @@ class RCFTrainer:
                     if self.gradient_clip_norm is not None:
                         torch.nn.utils.clip_grad_norm_(
                             self.model.parameters(), self.gradient_clip_norm)
-                    self.optimizer.step()
+                    # No data gradients: also avoid momentum/weight-decay updates.
+                    if group_has_valid_pixels:
+                        self.optimizer.step()
                     self.optimizer.zero_grad(set_to_none=True)
+                    group_has_valid_pixels = False
             total_loss += loss.detach().item()
             total_fused += parts["fused_bce"].item()
             total_positive += parts["positive_pixels"].item()

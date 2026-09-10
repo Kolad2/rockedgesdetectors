@@ -29,6 +29,40 @@ class TinySixOutput(nn.Module):
 
 
 class TrainingTests(unittest.TestCase):
+    def test_black_input_pixels_are_ignored(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            image = np.full((9, 9, 3), 100, dtype=np.uint8)
+            image[0, :2] = 0
+            image[0, 2] = [0, 0, 1]
+            label = np.zeros((9, 9), dtype=np.uint8)
+            label[0, 1:4] = 255
+            for name, array in (("image.png", image), ("label.png", label)):
+                self.assertTrue(cv2.imwrite(str(root/name), array))
+            manifest = root/"train.lst"
+            manifest.write_text("image.png\tlabel.png\n")
+            _, target = EdgeManifestDataset(manifest, crop_size=None)[0]
+            self.assertEqual(target[0, 0, :4].tolist(), [2, 2, 1, 1])
+            outputs = [torch.full_like(target, 0.5, requires_grad=True) for _ in range(6)]
+            loss, parts = RCFLoss()(outputs, target)
+            loss.backward()
+            self.assertEqual(parts["positive_pixels"].item(), 2)
+            for output in outputs:
+                self.assertTrue((output.grad[0, 0, :2] == 0).all())
+                self.assertNotEqual(output.grad[0, 0, 2].item(), 0)
+
+    def test_ignored_group_does_not_update_weights(self):
+        model = TinySixOutput()
+        optimizer = torch.optim.SGD(model.parameters(), lr=.01, momentum=.9, weight_decay=.1)
+        trainer = RCFTrainer(model, optimizer, RCFLoss(), "cpu", accumulation_steps=2)
+        image = torch.ones(1, 1, 1, 2)
+        trainer.train_epoch([(image, torch.tensor([[[[0., 1.]]]]))], 1)
+        before = model.weight.detach().clone()
+        momentum = optimizer.state[model.weight]["momentum_buffer"].clone()
+        trainer.train_epoch([(image, torch.full_like(image, 2))] * 3, 2)
+        torch.testing.assert_close(model.weight, before, rtol=0, atol=0)
+        torch.testing.assert_close(optimizer.state[model.weight]["momentum_buffer"], momentum)
+
     def test_upstream_bce_and_ignored_gradients(self):
         labels = torch.tensor([[[[0., 1., 2., 0.]]]])
         prediction = torch.tensor([[[[0.2, 0.7, 0.8, 0.4]]]], requires_grad=True)
@@ -36,7 +70,7 @@ class TrainingTests(unittest.TestCase):
         expected = -6 * ((1.1/3) * (torch.log(1-prediction[0,0,0,0])
                     + torch.log(1-prediction[0,0,0,3]))
                     + (2/3) * torch.log(prediction[0,0,0,1]))
-        torch.testing.assert_close(loss, expected)
+        torch.testing.assert_close(loss, expected * (320 * 320 / 3))
         loss.backward()
         self.assertEqual(prediction.grad[0,0,0,2].item(), 0)
         for value in (0., 1., 2.):
@@ -45,6 +79,15 @@ class TrainingTests(unittest.TestCase):
             zero.backward()
             self.assertEqual(zero.item(), 0)
             self.assertEqual(out.grad.abs().sum().item(), 0)
+
+    def test_loss_scale_is_independent_of_crop_area(self):
+        labels = torch.tensor([[[[0., 1.], [1., 0.]]]])
+        prediction = torch.tensor([[[[.2, .7], [.8, .3]]]])
+        small, _ = RCFLoss()([prediction] * 6, labels)
+        large_labels = labels.repeat(1, 1, 8, 8)
+        large_prediction = prediction.repeat(1, 1, 8, 8)
+        large, _ = RCFLoss()([large_prediction] * 6, large_labels)
+        torch.testing.assert_close(large, small)
 
     def test_official_optimizer_groups(self):
         model = RCF()

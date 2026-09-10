@@ -27,7 +27,7 @@ class TrainingConfig:
     batch_size: int = 1
     accumulation_steps: int = 10
     num_workers: int = 2
-    validation_fraction: float = 0.1
+    validation_fraction: float = 0.0
     seed: int = 42
     learning_rate: float = 1e-6
     momentum: float = 0.9
@@ -39,7 +39,7 @@ class TrainingConfig:
     ignore_ambiguous: bool = True
     min_edge_pixels_per_crop: int = 5
     crop_attempts: int = 10
-    gradient_clip_norm: float | None = None
+    gradient_clip_norm: float | None = 10000.0
     augment_flips: bool = True
     save_every_epochs: int = 1
     device: str = "cuda"

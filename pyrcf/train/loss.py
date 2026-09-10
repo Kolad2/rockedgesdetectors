@@ -13,11 +13,13 @@ class RCFLoss(nn.Module):
     as in upstream; single-class and completely ignored batches give zero loss.
     """
 
-    def __init__(self, negative_weight: float = 1.1):
+    def __init__(self, negative_weight: float = 1.1,
+                 reference_pixels: int = 320 * 320):
         super().__init__()
-        if negative_weight <= 0:
-            raise ValueError("negative_weight must be positive")
+        if negative_weight <= 0 or reference_pixels <= 0:
+            raise ValueError("negative_weight and reference_pixels must be positive")
         self.negative_weight = float(negative_weight)
+        self.reference_pixels = int(reference_pixels)
 
     def forward(self, outputs, target, valid=None):
         if len(outputs) != 6:
@@ -42,6 +44,11 @@ class RCFLoss(nn.Module):
             losses.append(F.binary_cross_entropy(
                 prediction[selected].float(), labels, weight=weights, reduction="sum",
             ))
+        # Upstream sums over pixels, making a 1024 crop produce about 10.24x
+        # the gradient of a 320 crop. Normalize to a 320x320-equivalent area
+        # while retaining the original loss/LR scale at that reference size.
+        normalization = self.reference_pixels * target.shape[0] / count
+        losses = [loss * normalization for loss in losses]
         total = torch.stack(losses).sum()
         return total, {
             "bce": total.detach(),

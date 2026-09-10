@@ -52,7 +52,8 @@ class EdgeManifestDataset(Dataset):
 
     By default, nonzero labels below threshold are ignored, as in BSDS_Dataset.
     Set ignore_ambiguous=False only for binary thresholding of project labels.
-    An optional third manifest column masks out pixels; padding is ignored too.
+    An optional third manifest column masks out pixels; padding and exactly
+    black input pixels (all three channels zero) are ignored too.
     """
 
     def __init__(self, manifest_path, crop_size=320, crop_mode="random",
@@ -85,6 +86,8 @@ class EdgeManifestDataset(Dataset):
         if self.ignore_ambiguous:
             label[(raw > 0) & (raw < threshold)] = 2
         label[raw >= threshold] = 1
+        # Detect missing image data before mean subtraction and spatial transforms.
+        label[np.all(image == 0, axis=2)] = 2
         if mask_path is not None:
             mask = _read_image(mask_path, cv2.IMREAD_GRAYSCALE)
             if mask.shape != raw.shape:

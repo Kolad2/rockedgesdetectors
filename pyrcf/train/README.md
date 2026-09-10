@@ -8,8 +8,9 @@ The implementation follows the authors' training algorithm:
 - `data.py`: BGR pixels minus `[104.00698793,116.66876762,122.67891434]`,
   and upstream labels: zero = background, values >= 127.5 = edge,
   intermediate nonzero values = ignored (label 2).
-- `loss.py`: `utils.py::Cross_entropy_loss`, balanced BCE summed over pixels
-  and all six sigmoid outputs with equal weights. Counts span the batch.
+- `loss.py`: `utils.py::Cross_entropy_loss`, balanced BCE over all six sigmoid
+  outputs with equal weights. The pixel sum is normalized to a 320x320
+  reference area, so changing crop size does not change the gradient scale.
 - `optimization.py`: `train.py` SGD, momentum 0.9, base LR 1e-6, weight decay
   2e-4. Weight LR multipliers: conv1-4 = 1, conv5 = 100, down = 0.1,
   side = 0.01, fusion = 0.001. Bias LR is doubled with no weight decay.
@@ -29,6 +30,8 @@ Project adaptations:
   not the authors' BSDS benchmark evaluation or multi-scale test.
 - Flush the final incomplete accumulation group, dividing by its actual size.
   Ignore-only and single-class crops have zero balanced BCE, without NaNs.
+- Clip the total gradient norm at 10000, which leaves typical 320x320 updates
+  intact while stopping destructive spikes.
 - Save atomically after scheduler.step(), using one-based completed epoch
   counts. Resume restores model, SGD momentum and scheduler; it does not
   restore random/worker state for bitwise reproduction of future crops.
